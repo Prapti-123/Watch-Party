@@ -1,0 +1,25 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket Test</title>
+</head>
+<body>
+  <h1>Socket Test</h1>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <script>
+    const socket = io("http://localhost:5000");
+
+    socket.on("connect", () => {
+      console.log("Connected:", socket.id);
+    });
+
+    // listen events
+    socket.on("play", () => console.log("PLAY RECEIVED"));
+    socket.on("pause", () => console.log("PAUSE RECEIVED"));
+    socket.on("user_joined", (data) => console.log("USER JOINED", data));
+  </script>
+</body>
+</html>
