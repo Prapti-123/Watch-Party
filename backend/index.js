@@ -1,19 +1,29 @@
-const  handleSocket = require("./sockets/socketHandler");
+// ✅ dotenv MUST be first — before any env-dependent require()
+const dotenv = require("dotenv");
+dotenv.config();
+
+const handleSocket = require("./sockets/socketHandler");
 const http = require("http");
 const { Server } = require("socket.io");
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./lib/db");
 const { connectRedis } = require("./lib/redis");
-const dotenv = require("dotenv");
 const youtubeRoutes = require("./routes/youtubeRoutes.js");
-const app = express();
 const roomRoutes = require("./routes/roomRoutes.js");
 
-dotenv.config();
-connectDB();
+const app = express();
 
 async function start() {
+  try {
+    // ✅ connectDB inside start() so MONGO_URI is already loaded
+    await connectDB();
+    console.log("MongoDB connected");
+  } catch (err) {
+    console.error("MongoDB connection failed", err);
+    process.exit(1);
+  }
+
   try {
     await connectRedis();
     console.log("Redis connected");
@@ -25,18 +35,14 @@ async function start() {
   app.use(cors());
   app.use(express.json());
 
-// 🔥 create HTTP server
-const server = http.createServer(app);
+  // 🔥 create HTTP server
+  const server = http.createServer(app);
 
-// 🔥 attach socket
-const io = new Server(server, {
-  cors: {
-    origin: "*"
-  }
-});
-handleSocket(io);
-// socket connection
-
+  // 🔥 attach socket.io
+  const io = new Server(server, {
+    cors: { origin: "*" }
+  });
+  handleSocket(io);
 
   app.get("/api/test", (req, res) => {
     res.json({ message: "API working" });

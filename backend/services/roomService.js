@@ -4,7 +4,6 @@ const { nanoid } = require("nanoid");
 
 // Create Room Service
 async function createRoomService(hostId) {
-    const roomId = generateRoomId();
   try {
     const roomId = nanoid(8);
 

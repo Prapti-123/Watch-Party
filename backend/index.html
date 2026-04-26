@@ -1,25 +1,373 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Socket Test</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Watch Party — Socket Test</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #0f0f13;
+      color: #e2e2e8;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #a78bfa;
+      margin-bottom: 1.5rem;
+      letter-spacing: -0.5px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: #1a1a24;
+      border: 1px solid #2e2e40;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #7c7c9a;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: #9191b0;
+      margin-bottom: 0.25rem;
+      margin-top: 0.75rem;
+    }
+
+    label:first-of-type { margin-top: 0; }
+
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: #0f0f18;
+      border: 1px solid #2e2e45;
+      border-radius: 8px;
+      color: #e2e2e8;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus { border-color: #7c3aed; }
+
+    button {
+      margin-top: 1rem;
+      width: 100%;
+      padding: 0.55rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    button:active { transform: scale(0.97); }
+    button:hover  { opacity: 0.88; }
+
+    .btn-join   { background: #7c3aed; color: #fff; }
+    .btn-play   { background: #16a34a; color: #fff; }
+    .btn-pause  { background: #d97706; color: #fff; }
+    .btn-seek   { background: #2563eb; color: #fff; }
+    .btn-change { background: #db2777; color: #fff; }
+    .btn-leave  { background: #dc2626; color: #fff; }
+
+    /* ── Event log ── */
+    #log-section { margin-top: 1.5rem; }
+
+    #log-section h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #7c7c9a;
+      margin-bottom: 0.75rem;
+    }
+
+    #log {
+      background: #0b0b12;
+      border: 1px solid #1e1e2e;
+      border-radius: 10px;
+      padding: 1rem;
+      height: 260px;
+      overflow-y: auto;
+      font-family: "Cascadia Code", "Fira Code", monospace;
+      font-size: 0.78rem;
+      line-height: 1.6;
+    }
+
+    .log-entry { display: flex; gap: 0.5rem; }
+    .log-time  { color: #4b5563; flex-shrink: 0; }
+    .log-in    { color: #34d399; }  /* server → client */
+    .log-out   { color: #a78bfa; } /* client → server */
+    .log-err   { color: #f87171; }
+    .log-info  { color: #60a5fa; }
+
+    #status {
+      display: inline-block;
+      margin-bottom: 1rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0.3rem 0.75rem;
+      border-radius: 20px;
+      background: #1e1e2e;
+      border: 1px solid #2e2e45;
+      color: #f87171;
+    }
+
+    #status.connected { color: #34d399; }
+  </style>
 </head>
 <body>
-  <h1>Socket Test</h1>
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<h1>🎬 Watch Party — Socket.IO Test Console</h1>
 
-  <script>
-    const socket = io("http://localhost:5000");
+<div id="status">⚪ Disconnected</div>
 
-    socket.on("connect", () => {
-      console.log("Connected:", socket.id);
-    });
+<div class="grid">
 
-    // listen events
-    socket.on("play", () => console.log("PLAY RECEIVED"));
-    socket.on("pause", () => console.log("PAUSE RECEIVED"));
-    socket.on("user_joined", (data) => console.log("USER JOINED", data));
-  </script>
+  <!-- ── join_room ─────────────────────────────────────────── -->
+  <div class="card">
+    <h2>join_room</h2>
+    <label for="jr-roomId">Room ID</label>
+    <input id="jr-roomId"  type="text" placeholder="room-abc" value="room-abc" />
+    <label for="jr-userId">User ID</label>
+    <input id="jr-userId"  type="text" placeholder="user-123" value="user-123" />
+    <label for="jr-username">Username</label>
+    <input id="jr-username" type="text" placeholder="Alice" value="Alice" />
+    <button class="btn-join" onclick="emitJoinRoom()">Emit join_room</button>
+  </div>
+
+  <!-- ── leave_room ────────────────────────────────────────── -->
+  <div class="card">
+    <h2>leave_room</h2>
+    <small style="color:#7c7c9a;font-size:0.78rem;">Uses socket-stored values if left blank.</small>
+    <label for="lr-roomId">Room ID (optional)</label>
+    <input id="lr-roomId"  type="text" placeholder="(auto)" />
+    <label for="lr-userId">User ID (optional)</label>
+    <input id="lr-userId"  type="text" placeholder="(auto)" />
+    <label for="lr-username">Username (optional)</label>
+    <input id="lr-username" type="text" placeholder="(auto)" />
+    <button class="btn-leave" onclick="emitLeaveRoom()">Emit leave_room</button>
+  </div>
+
+  <!-- ── play ──────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>play</h2>
+    <label for="play-roomId">Room ID</label>
+    <input id="play-roomId"      type="text"   placeholder="room-abc" value="room-abc" />
+    <label for="play-currentTime">Current Time (s)</label>
+    <input id="play-currentTime" type="number" placeholder="0" value="0" min="0" step="0.5" />
+    <button class="btn-play" onclick="emitPlay()">Emit play</button>
+  </div>
+
+  <!-- ── pause ─────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>pause</h2>
+    <label for="pause-roomId">Room ID</label>
+    <input id="pause-roomId"      type="text"   placeholder="room-abc" value="room-abc" />
+    <label for="pause-currentTime">Current Time (s)</label>
+    <input id="pause-currentTime" type="number" placeholder="0" value="0" min="0" step="0.5" />
+    <button class="btn-pause" onclick="emitPause()">Emit pause</button>
+  </div>
+
+  <!-- ── seek ──────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>seek</h2>
+    <label for="seek-roomId">Room ID</label>
+    <input id="seek-roomId" type="text"   placeholder="room-abc" value="room-abc" />
+    <label for="seek-time">Seek Time (s)</label>
+    <input id="seek-time"   type="number" placeholder="30" value="30" min="0" step="1" />
+    <button class="btn-seek" onclick="emitSeek()">Emit seek</button>
+  </div>
+
+  <!-- ── change_video ──────────────────────────────────────── -->
+  <div class="card">
+    <h2>change_video</h2>
+    <label for="cv-roomId">Room ID</label>
+    <input id="cv-roomId"  type="text" placeholder="room-abc" value="room-abc" />
+    <label for="cv-videoId">Video ID</label>
+    <input id="cv-videoId" type="text" placeholder="dQw4w9WgXcQ" value="dQw4w9WgXcQ" />
+    <button class="btn-change" onclick="emitChangeVideo()">Emit change_video</button>
+  </div>
+
+</div>
+
+<!-- ── Event Log ─────────────────────────────────────────────── -->
+<div id="log-section">
+  <h2>Event Log</h2>
+  <div id="log"></div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  const socket = io("http://localhost:5000");
+
+  // ─── connection status ──────────────────────────────────────
+  socket.on("connect", () => {
+    document.getElementById("status").textContent = `🟢 Connected — ${socket.id}`;
+    document.getElementById("status").classList.add("connected");
+    addLog("info", `Connected: ${socket.id}`);
+  });
+
+  socket.on("disconnect", () => {
+    document.getElementById("status").textContent = "⚪ Disconnected";
+    document.getElementById("status").classList.remove("connected");
+    addLog("info", "Disconnected from server");
+  });
+
+  // ─── server → client events ─────────────────────────────────
+
+  /** Emitted after join_room when Redis state exists for the room */
+  socket.on("sync_state", (data) => {
+    addLog("in", `sync_state ← ${JSON.stringify(data)}`);
+  });
+
+  /** Broadcast to room when another user joins */
+  socket.on("user_joined", (data) => {
+    addLog("in", `user_joined ← ${JSON.stringify(data)}`);
+  });
+
+  /** Broadcast to room when a user leaves */
+  socket.on("user_left", (data) => {
+    addLog("in", `user_left ← ${JSON.stringify(data)}`);
+  });
+
+  /** Broadcast to room (except host) when host plays */
+  socket.on("play", (data) => {
+    addLog("in", `play ← ${JSON.stringify(data)}`);
+  });
+
+  /** Broadcast to room (except host) when host pauses */
+  socket.on("pause", (data) => {
+    addLog("in", `pause ← ${JSON.stringify(data)}`);
+  });
+
+  /** Broadcast to room (except host) when host seeks */
+  socket.on("seek", (data) => {
+    addLog("in", `seek ← ${JSON.stringify(data)}`);
+  });
+
+  /** Broadcast to room (except host) when host changes video */
+  socket.on("change_video", (data) => {
+    addLog("in", `change_video ← ${JSON.stringify(data)}`);
+  });
+
+  /** Server-side validation / auth errors */
+  socket.on("error", (data) => {
+    addLog("err", `error ← ${JSON.stringify(data)}`);
+  });
+
+  // ─── emit helpers ───────────────────────────────────────────
+
+  function emitJoinRoom() {
+    const payload = {
+      roomId:   val("jr-roomId"),
+      userId:   val("jr-userId"),
+      username: val("jr-username"),
+    };
+    socket.emit("join_room", payload);
+    addLog("out", `join_room → ${JSON.stringify(payload)}`);
+  }
+
+  function emitLeaveRoom() {
+    const payload = {
+      roomId:   val("lr-roomId")   || undefined,
+      userId:   val("lr-userId")   || undefined,
+      username: val("lr-username") || undefined,
+    };
+    // strip undefined keys
+    Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+    socket.emit("leave_room", payload);
+    addLog("out", `leave_room → ${JSON.stringify(payload)}`);
+  }
+
+  function emitPlay() {
+    const payload = {
+      roomId:      val("play-roomId"),
+      currentTime: parseFloat(val("play-currentTime")) || 0,
+    };
+    socket.emit("play", payload);
+    addLog("out", `play → ${JSON.stringify(payload)}`);
+  }
+
+  function emitPause() {
+    const payload = {
+      roomId:      val("pause-roomId"),
+      currentTime: parseFloat(val("pause-currentTime")) || 0,
+    };
+    socket.emit("pause", payload);
+    addLog("out", `pause → ${JSON.stringify(payload)}`);
+  }
+
+  function emitSeek() {
+    const payload = {
+      roomId: val("seek-roomId"),
+      time:   parseFloat(val("seek-time")) || 0,
+    };
+    socket.emit("seek", payload);
+    addLog("out", `seek → ${JSON.stringify(payload)}`);
+  }
+
+  function emitChangeVideo() {
+    const payload = {
+      roomId:  val("cv-roomId"),
+      videoId: val("cv-videoId"),
+    };
+    socket.emit("change_video", payload);
+    addLog("out", `change_video → ${JSON.stringify(payload)}`);
+  }
+
+  // ─── utils ──────────────────────────────────────────────────
+
+  function val(id) {
+    return document.getElementById(id).value.trim();
+  }
+
+  function addLog(type, text) {
+    const log = document.getElementById("log");
+    const entry = document.createElement("div");
+    entry.className = "log-entry";
+
+    const now = new Date();
+    const ts  = now.toTimeString().slice(0, 8);
+
+    entry.innerHTML =
+      `<span class="log-time">${ts}</span>` +
+      `<span class="log-${type}">${escHtml(text)}</span>`;
+
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function escHtml(str) {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+</script>
 </body>
 </html>
